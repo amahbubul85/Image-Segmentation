@@ -2,7 +2,6 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-import io
 
 # Load the trained U-Net model
 model = tf.keras.models.load_model('unet_model.h5', compile=False)
@@ -22,15 +21,16 @@ def colorize_mask(mask):
         color_mask[mask == class_idx] = color
     return Image.fromarray(color_mask)
 
-# Prediction function
+# Preprocess uploaded image
 def preprocess_image(image):
     image = image.resize((128, 128))  # Resize to model input
-    image = np.array(image) / 255.0  # Normalize
+    image = np.array(image) / 255.0   # Normalize
     image = image.astype(np.float32)
     return np.expand_dims(image, axis=0)  # Add batch dim
 
-def predict_mask(image):
-    pred = model.predict(image)
+# Predict segmentation mask
+def predict_mask(image_tensor):
+    pred = model.predict(image_tensor)
     pred_mask = tf.argmax(pred, axis=-1)
     pred_mask = pred_mask[0]
     return tf.cast(pred_mask, tf.uint8).numpy()
@@ -48,6 +48,11 @@ if uploaded_file:
         input_tensor = preprocess_image(image)
         mask = predict_mask(input_tensor)
 
-        # Colorize mask and display
+        # Colorized version
         colored_mask = colorize_mask(mask)
-        st.image(colored_mask, caption="Predicted Mask (Colored)", use_container_width=True)
+        # Grayscale version
+        grayscale_mask = Image.fromarray(mask * 127)
+
+        # Show both
+        st.subheader("Predicted Masks")
+        st.image([colored_mask, grayscale_mask], caption=["Colored Mask", "Grayscale Mask"], use_container_width=True)
